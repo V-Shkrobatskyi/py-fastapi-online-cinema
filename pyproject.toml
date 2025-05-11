@@ -11,6 +11,17 @@ fastapi = "^0.115.12"
 sqlalchemy = "^2.0.40"
 uvicorn = "^0.34.2"
 aiosqlite = "^0.21.0"
+pydantic-settings = "^2.9.1"
+pytest = "^8.3.5"
+httpx = "^0.28.1"
+flake8 = "^7.2.0"
+pytest-asyncio = "^0.26.0"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+python-jose = {extras = ["cryptography"], version = "^3.4.0"}
+alembic = "^1.15.2"
+bcrypt = "^4.3.0"
+email-validator = "^2.2.0"
+boto3 = "^1.38.13"
 
 
 [build-system]
