@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from src.database.models import movies, accounts, carts  # noqa: F401
+from src.database.models import accounts  # noqa: F401
 from src.database.models.base import Base
 from src.database.database import engine
 
