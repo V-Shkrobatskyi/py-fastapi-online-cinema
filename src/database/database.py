@@ -1,39 +1,34 @@
-import os
-from contextlib import contextmanager
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    async_sessionmaker,
+    AsyncSession,
+)
+from sqlalchemy.orm import declarative_base
+from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-
-from src.config.dependencies import get_settings
-
-from src.database.models.base import Base
+from config.dependencies import get_settings
 
 settings = get_settings()
-DATABASE_URL = f"sqlite:///{settings.PATH_TO_DB}"
+DATABASE_URL = f"sqlite+aiosqlite:///{settings.PATH_TO_DB}"
+engine = create_async_engine(DATABASE_URL, echo=True)
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-connection = engine.connect()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
-
-
-def get_db() -> Session:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async_session = async_sessionmaker(bind=engine, expire_on_commit=False)
+Base = declarative_base()
 
 
-@contextmanager
-def get_db_contextmanager() -> Session:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session() as session:
+        yield session
 
 
-def reset_database():
-    with connection.begin():
-        Base.metadata.drop_all(bind=connection)
-        Base.metadata.create_all(bind=connection)
+@asynccontextmanager
+async def get_db_contextmanager() -> AsyncSession:
+    async with async_session() as session:
+        yield session
+
+
+async def reset_database():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
