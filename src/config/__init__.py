@@ -6,3 +6,5 @@ from .dependencies import (
     get_current_user_id,
     get_s3_storage_client,
 )
+
+settings = BaseAppSettings()
