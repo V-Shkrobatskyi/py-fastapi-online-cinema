@@ -42,7 +42,6 @@ class CommentSchema(BaseModel):
     id: int
     user_id: int
     comment: str
-    answers: list[int] | None = None
 
     model_config = {"from_attributes": True}
 
@@ -127,7 +126,7 @@ class MovieCreateSchema(BaseModel):
     stars: list[str]
     directors: list[str]
     certification: str
-    comments: list[CommentSchema]
+    comments: list[CommentSchema] = []
 
     model_config = {
         "from_attributes": True,
