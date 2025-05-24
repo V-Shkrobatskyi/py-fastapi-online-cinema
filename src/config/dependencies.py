@@ -3,13 +3,13 @@ import os
 from fastapi import Depends, HTTPException
 from starlette import status
 
-from src.config.settings import TestingSettings, Settings, BaseAppSettings
-from src.exceptions import BaseSecurityError
-from src.notifications import EmailSenderInterface, EmailSender
-from src.security.http import get_token
-from src.security.interfaces import JWTAuthManagerInterface
-from src.security.token_manager import JWTAuthManager
-from src.storages import S3StorageInterface, S3StorageClient
+from config.settings import TestingSettings, Settings, BaseAppSettings
+from exceptions import BaseSecurityError
+from notifications import EmailSenderInterface, EmailSender
+from security.http import get_token
+from security.interfaces import JWTAuthManagerInterface
+from security.token_manager import JWTAuthManager
+from storages import S3StorageInterface, S3StorageClient
 
 
 def get_settings() -> BaseAppSettings:

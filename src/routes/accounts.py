@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 
 from typing import cast
 
-from src.config import BaseAppSettings
-from src.database import (
+from sqlalchemy.orm import selectinload
+
+from config import BaseAppSettings
+from database import (
     get_db,
     User,
     UserGroup,
@@ -16,16 +18,16 @@ from src.database import (
     RefreshToken,
     PasswordResetToken,
 )
-from src.exceptions import BaseSecurityError
-from src.notifications import EmailSenderInterface
+from exceptions import BaseSecurityError
+from notifications import EmailSenderInterface
 
-from src.config.dependencies import (
+from config.dependencies import (
     get_accounts_email_notificator,
     get_settings,
     get_jwt_auth_manager,
     get_current_user_id,
 )
-from src.schemas.accounts import (
+from schemas.accounts import (
     UserRegistrationResponseSchema,
     UserRegistrationRequestSchema,
     UserActivationRequestSchema,
@@ -38,7 +40,7 @@ from src.schemas.accounts import (
     TokenRefreshResponseSchema,
     TokenRefreshRequestSchema,
 )
-from src.security.interfaces import JWTAuthManagerInterface
+from security.interfaces import JWTAuthManagerInterface
 
 router = APIRouter()
 

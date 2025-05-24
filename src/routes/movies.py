@@ -1,17 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 
-from sqlalchemy.orm import Session
-
-from src.database import get_db
-from src.database.models.movies import (
+from config import get_current_user_id, get_accounts_email_notificator
+from database import get_db, User, UserGroupEnum, Purchased
+from database.models.movies import (
     Movie,
     Genre,
     Director,
     Star,
 )
-
-from src.schemas.movies import (
+from notifications import EmailSenderInterface
+from schemas.movies import (
     MovieListItemSchema,
     MovieListResponseSchema,
 )
