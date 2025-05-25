@@ -13,8 +13,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
-from .base import Base
-from database import User
+from . import Base
+from .accounts import User
 
 MoviesGenres = Table(
     "movie_genres",

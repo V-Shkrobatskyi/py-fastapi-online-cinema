@@ -5,7 +5,7 @@ import enum
 from sqlalchemy import Integer, ForeignKey, DateTime, Numeric, Enum, String, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
-from .base import Base
+from . import Base
 from typing import List
 
 
@@ -15,7 +15,7 @@ class PaymentStatus(enum.Enum):
     refunded = "refunded"
 
 
-class PaymentItemModel(Base):
+class PaymentItem(Base):
     __tablename__ = "payment_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -32,7 +32,7 @@ class PaymentItemModel(Base):
         )
 
 
-class PaymentModel(Base):
+class Payment(Base):
     __tablename__ = "payments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

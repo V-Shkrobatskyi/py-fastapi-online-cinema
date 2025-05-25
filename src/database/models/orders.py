@@ -5,10 +5,10 @@ from sqlalchemy import Integer, ForeignKey, String, DECIMAL, DateTime, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from typing import List
-from .base import Base
+from . import Base
 
 
-class OrderModel(Base):
+class Order(Base):
     __tablename__ = "orders"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -29,7 +29,7 @@ class OrderModel(Base):
         )
 
 
-class OrderItemModel(Base):
+class OrderItem(Base):
     __tablename__ = "order_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

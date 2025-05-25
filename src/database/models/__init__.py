@@ -1,16 +1,18 @@
-from .models import Base
-from .models.accounts import (
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+from .accounts import (
     UserGroupEnum,
     GenderEnum,
     UserGroup,
     User,
     UserProfile,
-    TokenBase,
     ActivationToken,
     PasswordResetToken,
     RefreshToken,
 )
-from .models.movies import (
+from .carts import Cart, CartItem
+from .movies import (
     MoviesGenres,
     MoviesDirectors,
     MoviesStars,
@@ -19,14 +21,12 @@ from .models.movies import (
     Director,
     Certification,
     Movie,
+    Like,
+    Dislike,
     Comment,
     AnswerComment,
     Favorite,
-    Like,
-    Dislike,
     Rating,
 )
-from .models.carts import Cart, CartItem, Purchased
-from .database import get_db, get_db_contextmanager, reset_database
-
-from .validators import accounts as accounts_validators
+from .payments import Payment, PaymentItem
+from .orders import OrderItem, Order
