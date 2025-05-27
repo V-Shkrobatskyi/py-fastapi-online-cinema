@@ -11,8 +11,8 @@ from typing import cast
 from sqlalchemy.orm import selectinload
 
 from config import BaseAppSettings
-from database import (
-    get_db,
+from database import get_db
+from database.models import (
     User,
     UserGroup,
     UserGroupEnum,

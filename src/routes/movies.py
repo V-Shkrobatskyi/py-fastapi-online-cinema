@@ -4,8 +4,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from config import get_current_user_id, get_accounts_email_notificator
-from database import get_db, User, UserGroupEnum, Purchased
-from database.models.movies import (
+from database import get_db
+from database.models import (
+    User,
+    UserGroupEnum,
+    # Purchased,
     Movie,
     Genre,
     Director,

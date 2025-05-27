@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import get_s3_storage_client, get_jwt_auth_manager
 from database import get_db
-from database.models.accounts import (
+from database.models import (
     User,
     UserProfile,
     GenderEnum,
@@ -19,7 +19,6 @@ from schemas.profiles import ProfileCreateSchema, ProfileResponseSchema
 from security.interfaces import JWTAuthManagerInterface
 from security.http import get_token
 from storages import S3StorageInterface
-
 
 router = APIRouter()
 
