@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class GenreSchema(BaseModel):
@@ -35,7 +35,7 @@ class CertificationSchema(BaseModel):
     id: int
     name: str
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CommentSchema(BaseModel):
@@ -43,7 +43,7 @@ class CommentSchema(BaseModel):
     user_id: int
     comment: str
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieBaseSchema(BaseModel):
@@ -57,7 +57,7 @@ class MovieBaseSchema(BaseModel):
     description: str
     price: float
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
     @field_validator("year")
     @classmethod
@@ -148,4 +148,4 @@ class MovieUpdateSchema(BaseModel):
     description: str | None = None
     price: float | None = Field(None, ge=0)
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
