@@ -17,6 +17,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from . import Base
+from .orders import Order
+from .payments import Payment
 from database.validators import accounts as validators
 from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
@@ -92,6 +94,8 @@ class User(Base):
     comments = relationship("Comment", back_populates="user")
     favorites = relationship("Favorite", back_populates="user")
     cart = relationship("Cart", back_populates="user")
+    orders: Mapped[List["Order"]] = relationship("Order", back_populates="user")
+    payments: Mapped[List["Payment"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, is_active={self.is_active})>"
@@ -104,7 +108,7 @@ class User(Base):
         cls, email: str, raw_password: str, group_id: int | Mapped[int]
     ) -> "User":
         """
-        Factory method to create a new UserModel instance.
+        Factory method to create a new User instance.
 
         This method simplifies the creation of a new user by handling
         password hashing and setting required attributes.
@@ -226,7 +230,7 @@ class RefreshToken(TokenBase):
         cls, user_id: int | Mapped[int], days_valid: int, token: str
     ) -> "RefreshToken":
         """
-        Factory method to create a new RefreshTokenModel instance.
+        Factory method to create a new RefreshToken instance.
 
         This method simplifies the creation of a new refresh token by calculating
         the expiration date based on the provided number of valid days and setting

@@ -1,11 +1,18 @@
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum as PyEnum
 
-from sqlalchemy import Integer, ForeignKey, String, DECIMAL, DateTime, func
+from sqlalchemy import Integer, ForeignKey, String, DECIMAL, DateTime, func, Enum
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from typing import List
 from . import Base
+
+
+class OrderStatus(PyEnum):
+    PENDING = "pending"
+    PAID = "paid"
+    CANCELED = "canceled"
 
 
 class Order(Base):
@@ -14,7 +21,9 @@ class Order(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    status: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[OrderStatus] = mapped_column(
+        Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False
+    )
     total_amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
     user: Mapped["User"] = relationship("User", back_populates="orders")
     items: Mapped[List["OrderItem"]] = relationship("OrderItem", back_populates="order")

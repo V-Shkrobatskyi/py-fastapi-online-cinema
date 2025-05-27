@@ -44,7 +44,7 @@ class Payment(Base):
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     external_payment_id: Mapped[str] = mapped_column(String(255), nullable=True)
-    order: Mapped["Order"] = relationship("OrderModel", back_populates="payments")
+    order: Mapped["Order"] = relationship("Order", back_populates="payments")
     user: Mapped["User"] = relationship(back_populates="payments")
     payment_items: Mapped[List["PaymentItem"]] = relationship("PaymentItem", back_populates="payment")
 
