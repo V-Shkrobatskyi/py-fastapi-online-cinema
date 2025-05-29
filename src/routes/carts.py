@@ -1,7 +1,9 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import delete
 from datetime import datetime, timezone
 from config.dependencies import get_current_user_id
@@ -11,8 +13,17 @@ from database import get_db
 from database.models.carts import Cart, CartItem
 from database.models.movies import Movie
 from schemas.carts import CartResponseSchema, CartItemResponseSchema
+from fastapi import status
 
 router = APIRouter()
+
+
+async def fetch_existing_cart(user_id: int, db: AsyncSession) -> Optional[Cart]:
+    result = await db.execute(
+        select(Cart).options(joinedload(Cart.cart_items))
+        .filter(Cart.user_id == user_id)
+    )
+    return result.scalars().first()
 
 
 async def get_cart_by_user(user_id: int, db: AsyncSession) -> Cart:
