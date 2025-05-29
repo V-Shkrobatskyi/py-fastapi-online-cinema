@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from database import get_db
+from database.models.orders import OrderStatus
 from schemas.orders import (
     OrderResponseSchema,
     OrderItemResponseSchema,
@@ -21,9 +22,35 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func
 from typing import Optional
 from datetime import datetime
-from routes.carts import get_cart_by_user
+from routes.carts import fetch_existing_cart
 
 router = APIRouter()
+
+
+async def check_user_access(
+    db: AsyncSession,
+    current_user_id: int,
+    resource_owner_id: int
+) -> None:
+    """
+    Checks if the user with current_user_id has access to a resource
+    owned by resource_owner_id.
+    Access is granted to the admin or the resource owner.
+    Raises HTTPException if access is denied.
+    """
+    if current_user_id == resource_owner_id:
+        return  # Власник ресурсу має доступ
+
+    result = await db.execute(
+        select(User).filter(User.id == current_user_id)
+    )
+    current_user = result.scalar_one_or_none()
+
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if current_user.group.name != "admin":
+        raise HTTPException(status_code=403, detail="Access forbidden")
 
 
 @router.get("/orders", response_model=OrderListResponseSchema)
@@ -31,21 +58,23 @@ async def get_orders(
         page: int = Query(1, ge=1, description="Page number (1-based index)"),
         per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
         status: Optional[str] = Query(None,
-                                      description="Filter orders by status (e.g., 'pending', 'paid', 'cancelled')"),
+                                      description="Filter orders by status (e.g., 'pending', 'paid', 'canceled')"),
         user_id: Optional[int] = Query(None, description="Filter orders by user ID"),
         order_date: Optional[str] = Query(None, description="Filter orders by a specific date (YYYY-MM-DD)"),
         db: AsyncSession = Depends(get_db),
         current_user_id: int = Depends(get_current_user_id)
 ) -> OrderListResponseSchema:
     # Get the current user
-    current_user_result = await db.execute(select(User).filter(User.id == current_user_id))
+    current_user_result = await db.execute(
+        select(User).options(joinedload(User.group)).filter(User.id == current_user_id)
+    )
     current_user = current_user_result.scalar_one_or_none()
 
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
 
     # Check if the current user is an admin or if filters are applied by non-admin users
-    if current_user.group != "admin" and (status or user_id or order_date):
+    if current_user.group.name != "admin" and (status or user_id or order_date):
         raise HTTPException(status_code=403, detail="Access forbidden for non-admin users")
 
     # Base query to select orders with joined load for items and movies
@@ -53,12 +82,17 @@ async def get_orders(
 
     # Apply filters based on query parameters
     if status:
-        query = query.filter(Order.status == status)
+        try:
+            query = query.filter(Order.status == OrderStatus(status))
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status: '{status}'. Possible values: pending, paid, canceled.")
+
 
     if user_id:
         query = query.filter(Order.user_id == user_id)
     else:
-        query = query.filter(Order.user_id == current_user.id)
+        if current_user.group.name != "admin":
+            query = query.filter(Order.user_id == current_user.id)
 
     if order_date:
         try:
@@ -85,7 +119,7 @@ async def get_orders(
             id=order.id,
             user_id=order.user_id,
             created_at=order.created_at.isoformat(),
-            status=order.status,
+            status=order.status.value,
             total_amount=order.total_amount,
             movies=[item.movie.name for item in order.items],
         )
@@ -111,68 +145,58 @@ async def create_order(
         db: AsyncSession = Depends(get_db),
         current_user_id: int = Depends(get_current_user_id),
 ) -> OrderResponseSchema:
-    """
-    Create a new order for a user.
-    It checks if the cart has movies and if they are available before creating the order.
-    """
-    async with db.begin():
-        # Check for any cancelled orders
+    try:
+        # Check for any pending orders
         existing_orders = await db.execute(
-            select(Order).filter(Order.user_id == current_user_id, Order.status == "pending")
+            select(Order).filter(Order.user_id == current_user_id, Order.status == OrderStatus.PENDING)
         )
-        existing_orders = existing_orders.scalars().all()
-
-        if existing_orders:
+        if existing_orders.scalars().all():
             raise HTTPException(status_code=400, detail="You have unpaid order")
 
-        # Get movies in the user's cart
-        user_cart = await get_cart_by_user(current_user_id, db)
-        user_movies = await db.execute(
-            select(Movie).where(Movie.id.in_([item.movie_id for item in user_cart.cart_items]))
-        )
+        # Get existing cart (do NOT create)
+        user_cart = await fetch_existing_cart(current_user_id, db)
+        if not user_cart or not user_cart.cart_items:
+            raise HTTPException(status_code=400, detail="Your cart is empty")
+
+        movie_ids = [item.movie_id for item in user_cart.cart_items]
+        user_movies = await db.execute(select(Movie).where(Movie.id.in_(movie_ids)))
         movies_in_cart = user_movies.scalars().all()
 
         if not movies_in_cart:
-            raise HTTPException(status_code=400, detail="Your cart is empty")
+            raise HTTPException(status_code=400, detail="Movies in your cart are no longer available")
 
-        # Calculate the total amount
         total_amount = sum(movie.price for movie in movies_in_cart)
 
-        # Create a new order
-    try:
-        async with db.begin():
-            order = Order(user_id=current_user_id, status="pending", total_amount=total_amount)
-            db.add(order)
-            await db.flush()
+        order = Order(user_id=current_user_id, status=OrderStatus.PENDING, total_amount=total_amount)
+        db.add(order)
+        await db.flush()
 
-            # Add order items
-            for movie in movies_in_cart:
-                order_item = OrderItem(order_id=order.id, movie_id=movie.id, price_at_order=movie.price)
-                db.add(order_item)
+        for movie in movies_in_cart:
+            order_item = OrderItem(order_id=order.id, movie_id=movie.id, price_at_order=movie.price)
+            db.add(order_item)
 
-            # Clear user's cart
-            for item in user_cart.cart_items:
-                await db.delete(item)
+        for item in user_cart.cart_items:
+            await db.delete(item)
+        await db.delete(user_cart)
 
-            await db.delete(user_cart)  # Delete the cart itself
-            await db.commit()  # Commit after all changes in the transaction
+        await db.commit()
 
-        # Get the order with all items
         order_res = await db.execute(
             select(Order)
             .options(joinedload(Order.items).joinedload(OrderItem.movie))
             .filter(Order.id == order.id)
         )
-        order = order_res.scalars().first()
-
-        return order
+        return order_res.scalars().first()
 
     except SQLAlchemyError as e:
-        await db.rollback()  # In case of error, rollback the transaction
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
-@router.get("/orders/{order_id}", response_model=OrderResponseSchema)
+@router.get("/orders/{order_id}", response_model=OrderWithMoviesResponseSchema)
 async def get_order(
         order_id: int,
         db: AsyncSession = Depends(get_db),
@@ -180,7 +204,7 @@ async def get_order(
 ):
     """
     Get the details of a specific order.
-    Returns a 404 if the order is not found or is cancelled.
+    Returns a 404 if the order is not found or is canceled.
     """
     # Get the order
     result = await db.execute(
@@ -188,25 +212,16 @@ async def get_order(
         .options(joinedload(Order.items).joinedload(OrderItem.movie))
         .filter(Order.id == order_id)
     )
-    order = result.scalar_one_or_none()
+    order = result.unique().scalar_one_or_none()
 
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Access rights check - need to get user information to verify group
-    if order.user_id != current_user_id:
-        # Get current user information to check administrator rights
-        current_user_result = await db.execute(select(User).filter(User.id == current_user_id))
-        current_user = current_user_result.scalar_one_or_none()
+    # Access rights check
+    await check_user_access(db, current_user_id, order.user_id)
 
-        if not current_user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        if current_user.group != "admin":
-            raise HTTPException(status_code=403, detail="Access forbidden")
-
-    if order.status == "cancelled":
-        raise HTTPException(status_code=400, detail="Order is cancelled and cannot be accessed")
+    if order.status == OrderStatus.CANCELED:
+        raise HTTPException(status_code=400, detail="Order is canceled and cannot be accessed")
 
     return OrderWithMoviesResponseSchema(
         id=order.id,
@@ -221,15 +236,18 @@ async def get_order(
 @router.put("/orders/{order_id}", response_model=OrderResponseSchema)
 async def update_order_status(
         order_id: int,
-        status: str, db: AsyncSession = Depends(get_db),
+        status: str,
+        db: AsyncSession = Depends(get_db),
         current_user_id: int = Depends(get_current_user_id),
 ):
     """
     Update the status of an order.
-    Valid statuses are "pending", "paid", and "cancelled".
+    Valid statuses are "pending", "paid", and "canceled".
     """
     # Check for valid status
-    if status not in ["pending", "paid", "cancelled"]:
+    try:
+        requested_status_enum = OrderStatus(status)
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid status")
 
     # Get the order
@@ -240,41 +258,40 @@ async def update_order_status(
         raise HTTPException(status_code=404, detail="Order not found")
 
     # Access rights check
-    if order.user_id != current_user_id:
-        # Get current user information to check administrator rights
-        current_user_result = await db.execute(select(User).filter(User.id == current_user_id))
-        current_user = current_user_result.scalar_one_or_none()
+    await check_user_access(db, current_user_id, order.user_id)
 
-        if not current_user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        if current_user.group != "admin":
-            raise HTTPException(status_code=403, detail="Access forbidden")
-
-    if order.status in ["paid", "cancelled"]:
-        raise HTTPException(status_code=400, detail="Cannot update a paid or cancelled order")
+    if order.status in [OrderStatus.PAID, OrderStatus.CANCELED]:
+        raise HTTPException(status_code=400, detail="Cannot update a paid or canceled order")
 
     # Update the order status
-    order.status = status
+    order.status = requested_status_enum
 
     # Commit changes
     await db.commit()
     await db.refresh(order)
 
     # Get the order items
-    order_items = await db.execute(select(OrderItem).filter(OrderItem.order_id == order_id))
-    items = order_items.scalars().all()
+    order_for_response_result = await db.execute(
+        select(Order)
+        .options(joinedload(Order.items).joinedload(OrderItem.movie))
+        .filter(Order.id == order_id)
+    )
+    order_for_response = order_for_response_result.unique().scalar_one_or_none()
+
+    if order_for_response is None:
+        raise HTTPException(status_code=500, detail="Order not found after update and refresh.")
 
     order_items_response = [
-        OrderItemResponseSchema(movie_id=item.movie_id, price_at_order=item.price_at_order) for item in items
+        OrderItemResponseSchema(movie_id=item.movie.id, price_at_order=item.price_at_order)
+        for item in order_for_response.items
     ]
 
     return OrderResponseSchema(
-        id=order.id,
-        user_id=order.user_id,
-        created_at=order.created_at,
-        status=order.status, # type: ignore
-        total_amount=order.total_amount,
+        id=order_for_response.id,
+        user_id=order_for_response.user_id,
+        created_at=order_for_response.created_at,
+        status=order_for_response.status.value,
+        total_amount=order_for_response.total_amount,
         items=order_items_response,
     )
 
@@ -297,20 +314,11 @@ async def delete_order(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
     # Access rights check
-    if order.user_id != current_user_id:
-        # Get current user information to check administrator rights
-        current_user_result = await db.execute(select(User).filter(User.id == current_user_id))
-        current_user = current_user_result.scalar_one_or_none()
-
-        if not current_user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        if current_user.group != "admin":
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden")
+    await check_user_access(db, current_user_id, order.user_id)
 
     # Status check
-    if order.status != "pending":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete a paid or cancelled order")
+    if order.status != OrderStatus.PENDING:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete a paid or canceled order")
 
     # Delete all related OrderItems if needed
     # await db.execute(select(OrderItem).filter(OrderItem.order_id == order_id))
@@ -341,23 +349,14 @@ async def cancel_order(
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Check access rights
-    if order.user_id != current_user_id:
-        # Get information about the current user to check admin rights
-        current_user_result = await db.execute(select(User).filter(User.id == current_user_id))
-        current_user = current_user_result.scalar_one_or_none()
+    # Access rights check
+    await check_user_access(db, current_user_id, order.user_id)
 
-        if not current_user:
-            raise HTTPException(status_code=404, detail="User not found")
+    if order.status != OrderStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Only pending orders can be canceled")
 
-        if current_user.group != "admin":
-            raise HTTPException(status_code=403, detail="Access forbidden")
-
-    if order.status != "pending":
-        raise HTTPException(status_code=400, detail="Only pending orders can be cancelled")
-
-    # Update the order status to "cancelled"
-    order.status = "cancelled"
+    # Update the order status to "canceled"
+    order.status = OrderStatus.CANCELED
 
     # Commit changes
     await db.commit()
