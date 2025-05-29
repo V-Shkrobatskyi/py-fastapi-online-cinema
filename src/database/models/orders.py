@@ -22,7 +22,14 @@ class Order(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False
+        Enum(
+            OrderStatus,
+            name="orderstatus_enum",
+            values_callable=lambda x: [member.value for member in x],
+            native_enum=False
+        ),
+        default=OrderStatus.PENDING,
+        nullable=False
     )
     total_amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
     user: Mapped["User"] = relationship("User", back_populates="orders")
