@@ -50,13 +50,31 @@ async def view_cart(
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
 ) -> CartResponseSchema:
-    """Get the contents of the user's cart."""
-    cart = await get_cart_by_user(user_id, db)
+    stmt = (
+        select(Cart)
+        .options(
+            selectinload(Cart.cart_items)
+            .selectinload(CartItem.movie)
+            .selectinload(Movie.genres)
+        )
+        .where(Cart.user_id == user_id)
+    )
+    result = await db.execute(stmt)
+    cart = result.scalars().first()
+
+    if not cart:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cart not found"
+        )
 
     if not cart.cart_items:
-        raise HTTPException(status_code=404, detail="Cart is empty")
+        raise HTTPException(
+            status_code=status.HTTP_200_OK,
+            detail="Cart is empty"
+        )
 
-    return CartResponseSchema.model_validate(cart)
+    return cart
 
 
 @router.post("/{movie_id}/add", response_model=CartItemResponseSchema)
