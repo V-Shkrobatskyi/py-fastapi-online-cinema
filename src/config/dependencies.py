@@ -54,7 +54,7 @@ def get_jwt_auth_manager(
     )
 
 
-def get_accounts_email_notificator(
+def get_email_notificator(
     settings: BaseAppSettings = Depends(get_settings),
 ) -> EmailSenderInterface:
     """
@@ -122,7 +122,10 @@ async def get_current_user_id(
         payload = jwt_manager.decode_access_token(token)
         user_id = int(payload.get("user_id"))
         if user_id is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: user_id missing")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: user_id missing",
+            )
         return user_id
     except BaseSecurityError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))

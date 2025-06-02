@@ -24,7 +24,7 @@ from exceptions import BaseSecurityError
 from notifications import EmailSenderInterface
 
 from config.dependencies import (
-    get_accounts_email_notificator,
+    get_email_notificator,
     get_settings,
     get_jwt_auth_manager,
     get_current_user_id,
@@ -78,7 +78,7 @@ async def register_user(
     user_data: UserRegistrationRequestSchema,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
+    email_sender: EmailSenderInterface = Depends(get_email_notificator),
 ) -> UserRegistrationResponseSchema:
     """
     Endpoint for user registration.
@@ -233,7 +233,7 @@ async def resend_activation_token(
     user_data: UserRegistrationRequestSchema,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
+    email_sender: EmailSenderInterface = Depends(get_email_notificator),
 ):
     """
     Endpoint to resend the activation token if the previous one expired.
@@ -419,7 +419,7 @@ async def request_password_reset_token(
     data: PasswordResetRequestSchema,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
+    email_sender: EmailSenderInterface = Depends(get_email_notificator),
 ) -> MessageResponseSchema:
     """
     Endpoint to request a password reset token.
@@ -569,7 +569,7 @@ async def request_change_password(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user_id: User = Depends(get_current_user_id),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
+    email_sender: EmailSenderInterface = Depends(get_email_notificator),
 ) -> MessageResponseSchema:
     result = await db.execute(select(User).filter_by(id=user_id))
     user = result.scalars().first()

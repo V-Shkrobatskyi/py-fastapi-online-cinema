@@ -3,7 +3,7 @@ from sqlalchemy import or_, func, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
-from config import get_current_user_id, get_accounts_email_notificator
+from config import get_current_user_id, get_email_notificator
 from database import get_db
 from database.models import (
     User,
@@ -794,7 +794,7 @@ async def reply_to_comment(
     background_tasks: BackgroundTasks,
     user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
+    email_sender: EmailSenderInterface = Depends(get_email_notificator),
 ):
     result = await db.execute(select(Comment).filter(Comment.id == comment_id))
     comment = result.scalars().first()
