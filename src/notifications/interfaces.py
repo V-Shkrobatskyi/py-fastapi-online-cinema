@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from decimal import Decimal
 
 
 class EmailSenderInterface(ABC):
@@ -61,4 +62,16 @@ class EmailSenderInterface(ABC):
 
     @abstractmethod
     async def send_comment_answer(self, email: str, answer_text: str) -> None:
+        pass
+
+    @abstractmethod
+    async def send_payment_email(self, email: str, amount: Decimal) -> None:
+        pass
+
+    @abstractmethod
+    async def send_refund_email(self, email: str, amount: Decimal) -> None:
+        pass
+
+    @abstractmethod
+    async def send_cancellation_email(self, email: str, amount: Decimal) -> None:
         pass
