@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 
-from routes import accounts_router, profiles_router, movies_router, carts_router, orders_router
+from routes import accounts_router, profiles_router, movies_router, carts_router, orders_router, payment_router
 
 app = FastAPI(
     title="Online cinema",
@@ -13,6 +13,7 @@ app.include_router(profiles_router, prefix="/profiles", tags=["profiles"])
 app.include_router(movies_router, prefix="/movies", tags=["movies"])
 app.include_router(carts_router, prefix="/carts", tags=["carts"])
 app.include_router(orders_router, prefix="/orders", tags=["orders"])
+app.include_router(payment_router, prefix="/payments", tags=["payments"])
 
 
 if __name__ == "__main__":
