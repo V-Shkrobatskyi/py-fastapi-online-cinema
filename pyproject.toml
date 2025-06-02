@@ -30,6 +30,7 @@ redis = "^6.1.0"
 pydantic = "^2.11.4"
 python-multipart = "^0.0.20"
 celery = "^5.5.2"
+stripe = "^12.2.0"
 
 
 [build-system]
