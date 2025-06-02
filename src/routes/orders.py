@@ -53,7 +53,7 @@ async def check_user_access(
         raise HTTPException(status_code=403, detail="Access forbidden")
 
 
-@router.get("/orders", response_model=OrderListResponseSchema)
+@router.get("/", response_model=OrderListResponseSchema)
 async def get_orders(
         page: int = Query(1, ge=1, description="Page number (1-based index)"),
         per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
@@ -140,7 +140,7 @@ async def get_orders(
     )
 
 
-@router.post("/orders", response_model=OrderResponseSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=OrderResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_order(
         db: AsyncSession = Depends(get_db),
         current_user_id: int = Depends(get_current_user_id),
@@ -196,7 +196,7 @@ async def create_order(
         )
 
 
-@router.get("/orders/{order_id}", response_model=OrderWithMoviesResponseSchema)
+@router.get("/{order_id}", response_model=OrderWithMoviesResponseSchema)
 async def get_order(
         order_id: int,
         db: AsyncSession = Depends(get_db),
@@ -233,7 +233,7 @@ async def get_order(
     )
 
 
-@router.put("/orders/{order_id}", response_model=OrderResponseSchema)
+@router.put("/{order_id}", response_model=OrderResponseSchema)
 async def update_order_status(
         order_id: int,
         status: str,
@@ -296,7 +296,7 @@ async def update_order_status(
     )
 
 
-@router.delete("/orders/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_order(
         order_id: int,
         db: AsyncSession = Depends(get_db),
@@ -333,7 +333,7 @@ async def delete_order(
     return {"detail": "Order deleted successfully"}
 
 
-@router.put("/orders/{order_id}/cancel", response_model=OrderResponseSchema)
+@router.put("/{order_id}/cancel", response_model=OrderResponseSchema)
 async def cancel_order(
         order_id: int,
         db: AsyncSession = Depends(get_db),
