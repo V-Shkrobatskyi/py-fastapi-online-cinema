@@ -8,27 +8,21 @@ class GenreSchema(BaseModel):
     id: int
     name: str
 
-    model_config = {
-        "from_attributes": True,
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DirectorSchema(BaseModel):
     id: int
     name: str
 
-    model_config = {
-        "from_attributes": True,
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StarSchema(BaseModel):
     id: int
     name: str
 
-    model_config = {
-        "from_attributes": True,
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CertificationSchema(BaseModel):
@@ -38,10 +32,19 @@ class CertificationSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AnswerCommentSchema(BaseModel):
+    id: int
+    user_id: int
+    text: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CommentSchema(BaseModel):
     id: int
     user_id: int
     comment: str
+    answers: List[AnswerCommentSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,9 +81,7 @@ class MovieDetailSchema(MovieBaseSchema):
     certification: CertificationSchema
     comments: list[CommentSchema]
 
-    model_config = {
-        "from_attributes": True,
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieListItemSchema(BaseModel):
@@ -93,9 +94,7 @@ class MovieListItemSchema(BaseModel):
     directors: List[DirectorSchema]
     stars: List[StarSchema]
 
-    model_config = {
-        "from_attributes": True,
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieListResponseSchema(BaseModel):
@@ -105,9 +104,7 @@ class MovieListResponseSchema(BaseModel):
     total_pages: int
     total_items: int
 
-    model_config = {
-        "from_attributes": True,
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieCreateSchema(BaseModel):
@@ -128,9 +125,7 @@ class MovieCreateSchema(BaseModel):
     certification: str
     comments: list[CommentSchema] = []
 
-    model_config = {
-        "from_attributes": True,
-    }
+    model_config = ConfigDict(from_attributes=True)
 
     @field_validator("genres", "stars", "directors", mode="before")
     @classmethod
