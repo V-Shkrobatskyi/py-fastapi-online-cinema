@@ -37,7 +37,7 @@ class BaseAppSettings(BaseSettings):
     S3_BUCKET_NAME: str = os.getenv("MINIO_STORAGE", "online-cinema-bucket")
 
     @property
-    def S3_STORAGE_ENDPOINT(self) -> str:
+    def s3_storage_endpoint(self) -> str:
         return f"http://{self.S3_STORAGE_HOST}:{self.S3_STORAGE_PORT}"
 
     CELERY_BROKER_URL: str = os.environ.get(
@@ -46,6 +46,10 @@ class BaseAppSettings(BaseSettings):
     CELERY_RESULT_BACKEND: str = os.environ.get(
         "CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/0"
     )
+
+    STRIPE_SECRET_KEY: str = os.environ.get("STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET: str = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    STRIPE_CURRENCY: str = os.environ.get("STRIPE_CURRENCY")
 
 
 class Settings(BaseAppSettings):
