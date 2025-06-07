@@ -1,7 +1,18 @@
+import os
 import uvicorn
 from fastapi import FastAPI
 
-from routes import accounts_router, profiles_router, movies_router, carts_router, orders_router, payment_router
+from routes import (
+    accounts_router,
+    profiles_router,
+    movies_router,
+    carts_router,
+    orders_router,
+    payment_router,
+)
+
+if "ENVIRONMENT" not in os.environ:
+    os.environ["ENVIRONMENT"] = "local"
 
 app = FastAPI(
     title="Online cinema",

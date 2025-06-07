@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
+env_mode: str = os.getenv("ENVIRONMENT", "local")
 
 
 class BaseAppSettings(BaseSettings):
@@ -70,3 +71,12 @@ class TestingSettings(BaseAppSettings):
     SECRET_KEY_ACCESS: str = "SECRET_KEY_ACCESS"
     SECRET_KEY_REFRESH: str = "SECRET_KEY_REFRESH"
     JWT_SIGNING_ALGORITHM: str = "HS256"
+
+
+class LocalSettings(Settings):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if env_mode == "local":
+            self.POSTGRES_HOST = "localhost"
+            self.S3_STORAGE_HOST = "localhost"
+            self.EMAIL_HOST = "localhost"
