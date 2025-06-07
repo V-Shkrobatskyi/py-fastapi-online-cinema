@@ -2,9 +2,9 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, status, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import delete
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 
 from typing import cast
 
@@ -45,6 +45,7 @@ from schemas.accounts import (
 from security.interfaces import JWTAuthManagerInterface
 
 router = APIRouter()
+BASE_URL = "http://127.0.0.1/accounts"
 
 
 @router.post(
@@ -87,53 +88,45 @@ async def register_user(
     If a user with the same email already exists, an HTTP 409 error is raised.
     In case of any unexpected issues during the creation process, an HTTP 500 error is returned.
     """
-    existing_user_result = await db.execute(select(User).filter_by(email=user_data.email))
-    existing_user = existing_user_result.scalars().first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"A user with this email {user_data.email} already exists.",
-        )
-
     try:
-        user_group = UserGroupEnum[user_data.group.upper()]
-        group_result = await db.execute(select(UserGroup).filter(UserGroup.name == user_group))
+        user_group_enum = UserGroupEnum[user_data.group.upper()]
+        group_result = await db.execute(
+            select(UserGroup).where(UserGroup.name == user_group_enum)
+        )
         group = group_result.scalars().first()
         if not group:
-            group = UserGroup(name=user_group)
+            group = UserGroup(name=user_group_enum)
             db.add(group)
             await db.flush()
-            await db.refresh(group)
 
         new_user = User(email=user_data.email, password=user_data.password, group=group)
         db.add(new_user)
         await db.flush()
-        await db.refresh(new_user)
 
-        activation_token = ActivationToken(user_id=new_user.id, user=new_user)
+        activation_token = ActivationToken(user=new_user)
         db.add(activation_token)
         await db.flush()
-        await db.refresh(activation_token)
 
-        new_user.activation_token = activation_token
         await db.commit()
-
-        activation_token = cast(ActivationToken, new_user.activation_token)
-        token_value = activation_token.token
 
         background_tasks.add_task(
             email_sender.send_activation_email,
             new_user.email,
-            f"http://127.0.0.1/accounts/activate/?token={token_value}",
+            f"{BASE_URL}/activate/?token={activation_token.token}",
         )
         return UserRegistrationResponseSchema(
-            id=new_user.id, email=new_user.email, group=new_user.group.name.value # type: ignore
+            id=new_user.id, email=new_user.email, group=new_user.group.name.value  # type: ignore
+        )
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"A user with this email {user_data.email} already exists.",
         )
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred during user creation.",
+            status_code=500, detail="An error occurred during user creation."
         )
 
 
@@ -184,8 +177,9 @@ async def activate_account(
 
     now_utc = datetime.now(timezone.utc)
     if (
-            not token_record
-            or cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc) < now_utc
+        not token_record
+        or cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc)
+        < now_utc
     ):
         if token_record:
             await db.delete(token_record)
@@ -246,7 +240,9 @@ async def resend_activation_token(
             detail="User not found.",
         )
 
-    result = await db.execute(select(ActivationToken).filter(ActivationToken.user_id == db_user.id))
+    result = await db.execute(
+        select(ActivationToken).filter(ActivationToken.user_id == db_user.id)
+    )
     activation_token = result.scalars().first()
     if activation_token:
         raise HTTPException(
@@ -263,7 +259,7 @@ async def resend_activation_token(
     background_tasks.add_task(
         email_sender.send_activation_email,
         db_user.email,
-        f"http://127.0.0.1/accounts/activate/?token={new_activation_token.token}",
+        f"{BASE_URL}/activate/?token={new_activation_token.token}",
     )
 
     return MessageResponseSchema(message="Activation token resent successfully.")
@@ -442,7 +438,7 @@ async def request_password_reset_token(
     background_tasks.add_task(
         email_sender.send_password_reset_email,
         str(data.email),
-        f"http://127.0.0.1/accounts/password-reset/request/?token={new_reset_token.token}",
+        f"{BASE_URL}/password-reset/request/?token={new_reset_token.token}",
     )
 
     return MessageResponseSchema(
@@ -504,17 +500,21 @@ async def reset_password(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or token."
         )
 
-    result_token = await db.execute(select(PasswordResetToken).filter_by(user_id=user.id))
+    result_token = await db.execute(
+        select(PasswordResetToken).filter_by(user_id=user.id)
+    )
     token_record = result_token.scalars().first()
     expires_at = None
     if token_record:
-        expires_at = cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc)
+        expires_at = cast(datetime, token_record.expires_at).replace(
+            tzinfo=timezone.utc
+        )
 
     if (
-            not token_record
-            or token_record.token != data.token
-            or expires_at is None
-            or expires_at < datetime.now(timezone.utc)
+        not token_record
+        or token_record.token != data.token
+        or expires_at is None
+        or expires_at < datetime.now(timezone.utc)
     ):
         if token_record:
             await db.delete(token_record)
@@ -649,7 +649,9 @@ async def refresh_access_token(
             detail=str(error),
         )
 
-    result = await db.execute(select(RefreshToken).filter_by(token=token_data.refresh_token))
+    result = await db.execute(
+        select(RefreshToken).filter_by(token=token_data.refresh_token)
+    )
     refresh_token_exist = result.scalars().first()
     if not refresh_token_exist:
         raise HTTPException(
@@ -669,4 +671,6 @@ async def refresh_access_token(
     await db.execute(delete(RefreshToken).filter_by(token=token_data.refresh_token))
     await db.commit()
 
-    return TokenRefreshResponseSchema(access_token=new_access_token, token_type="bearer")
+    return TokenRefreshResponseSchema(
+        access_token=new_access_token, token_type="bearer"
+    )
