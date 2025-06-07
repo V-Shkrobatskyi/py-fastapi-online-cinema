@@ -47,9 +47,9 @@ class BaseAppSettings(BaseSettings):
         "CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/0"
     )
 
-    STRIPE_SECRET_KEY: str = os.environ.get("STRIPE_SECRET_KEY")
-    STRIPE_WEBHOOK_SECRET: str = os.environ.get("STRIPE_WEBHOOK_SECRET")
-    STRIPE_CURRENCY: str = os.environ.get("STRIPE_CURRENCY")
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", os.urandom(99))
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", os.urandom(64))
+    STRIPE_CURRENCY: str = os.getenv("STRIPE_CURRENCY", "usd")
 
 
 class Settings(BaseAppSettings):
