@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "src"
+version = "0.1.0"
+description = "Online cinema"
+authors = ["Vitalii <vetali5700gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.115.12"
+sqlalchemy = "^2.0.40"
+uvicorn = "^0.34.2"
+aiosqlite = "^0.21.0"
+pydantic-settings = "^2.9.1"
+pytest = "^8.3.5"
+httpx = "^0.28.1"
+flake8 = "^7.2.0"
+pytest-asyncio = "^0.26.0"
+passlib = "^1.7.4"
+python-jose = {extras = ["cryptography"], version = "^3.4.0"}
+alembic = "^1.15.2"
+bcrypt = "3.2.0"
+email-validator = "^2.2.0"
+jinja2 = "^3.1.6"
+aiosmtplib = "^4.0.1"
+aioboto3 = "^14.3.0"
+pillow = "^11.2.1"
+python-dotenv = "^1.1.0"
+redis = "^6.1.0"
+pydantic = "^2.11.4"
+python-multipart = "^0.0.20"
+celery = "^5.5.2"
+stripe = "^12.2.0"
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
